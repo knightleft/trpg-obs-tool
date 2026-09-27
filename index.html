@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRPG OBS工具</title>
+<meta name="description" content="把 CCFOLIA 角色的 HP、MP、SAN 等數值，用你喜歡的樣式顯示在 OBS 上的自訂 CSS 產生器。選好形狀、顏色、文字、名稱與瀕危效果，複製 CSS 就完成。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="狀態條產生器">
+<meta property="og:title" content="狀態條產生器">
+<meta property="og:description" content="把 CCFOLIA 角色的 HP、MP、SAN，用你喜歡的樣式顯示在 OBS 上。從 9 種設計範本挑選形狀、顏色、文字與瀕危效果，複製即可使用。免費、免註冊。">
+<meta property="og:image" content="ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="狀態條產生器 － 把 CCFOLIA 的狀態，用你喜歡的樣式放到 OBS">
+<meta property="og:locale" content="zh_TW">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #15161a; --panel: #1e1f26; --line: #303240; --line-soft: #282a36;
+    --fg: #e7e7ea; --muted: #9a9aa5; --accent: #6b70ff;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font-family: "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif; font-size: 13px; }
+  header { padding: 18px 24px 14px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 4px; font-size: 17px; }
+  header p { margin: 0; color: var(--muted); font-size: 12px; }
+  .toptabs { display: flex; gap: 4px; padding: 0 24px; margin-top: 14px; border-bottom: 1px solid var(--line); }
+  .toptabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent;
+                     color: var(--muted); padding: 10px 18px 12px; font: inherit; font-size: 14px; font-weight: 700; }
+  .toptabs button:hover { background: transparent; color: var(--fg); }
+  .toptabs button[aria-selected=true] { color: var(--fg); border-bottom-color: var(--accent); }
+
+  main { display: grid; gap: 20px; padding: 20px 24px 40px;
+         grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); align-items: start; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0 16px 16px; }
+  .tabbar { display: flex; gap: 2px; margin: 0 -16px; padding: 8px 8px 0; border-bottom: 1px solid var(--line);
+            position: sticky; top: 0; background: var(--panel); z-index: 2; border-radius: 10px 10px 0 0; }
+  .tabbar button { flex: 1; border: 0; border-bottom: 2px solid transparent; border-radius: 0; white-space: nowrap;
+                   background: transparent; color: var(--muted); padding: 8px 2px 9px; }
+  .tabbar button:hover { background: transparent; color: var(--fg); }
+  .tabbar button[aria-selected=true] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 700; }
+
+  fieldset { border: 0; border-top: 1px solid var(--line-soft); margin: 14px 0 0; padding: 12px 0 0; min-width: 0; }
+  section > fieldset:first-child { border-top: 0; }
+  legend { padding: 0; color: var(--muted); font-size: 11px; letter-spacing: .08em; }
+  .row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; margin-top: 10px; }
+  .row > label { color: var(--muted); }
+  .row.wide { grid-template-columns: 1fr; }
+  .row.sub > label { padding-left: 12px; }
+  .with-value { display: grid; grid-template-columns: minmax(0, 1fr) 52px; gap: 8px; align-items: center; }
+  .with-value output { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; }
+  .color-alpha { display: grid; grid-template-columns: 60px minmax(0, 1fr) 44px; gap: 8px; align-items: center; }
+  .color-alpha output { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .checks { display: grid; gap: 6px; }
+
+  select, input[type=text], input[type=number], textarea {
+    width: 100%; background: #14151b; color: var(--fg); font: inherit;
+    border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+  textarea { resize: vertical; min-height: 52px; line-height: 1.5; }
+  input[type=color] { width: 100%; height: 30px; padding: 2px; background: #14151b;
+                      border: 1px solid var(--line); border-radius: 6px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; vertical-align: -3px; }
+  select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px; }
+  .desc { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .desc b { color: var(--fg); }
+  .check { color: var(--fg); cursor: pointer; }
+
+  button { background: #2f3140; color: var(--fg); border: 1px solid #464a5e;
+           border-radius: 6px; padding: 7px 14px; font: inherit; cursor: pointer; }
+  button:hover { background: #3a3d4f; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  button.primary:hover { background: #575cf5; }
+  button.small { padding: 4px 9px; font-size: 12px; }
+  button.danger:hover { background: #5a2f36; border-color: #8a4a55; }
+  button:disabled { opacity: .45; cursor: default; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .deco { border: 1px solid var(--line-soft); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .deco:has(> .deco-head input:checked) { border-color: #3c3f6a; background: #212336; }
+  .deco-head { display: flex; gap: 8px; align-items: center; font-weight: 700; cursor: pointer; }
+  .deco-head small { color: var(--muted); font-weight: 400; }
+  .deco .row { grid-template-columns: 84px minmax(0, 1fr); }
+
+  .bar-item { display: grid; grid-template-columns: 22px minmax(0, 1fr) 34px 34px 92px 22px; gap: 6px; align-items: center; margin-top: 6px; }
+  .bar-item .num { color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+  .bar-item input[type=color] { height: 28px; padding: 1px; }
+  .bar-head { color: var(--muted); font-size: 11px; }
+
+  .ov-box { position: relative; }
+  .ov-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .ov-canvas iframe { position: absolute; border: 1px dashed rgba(255, 64, 160, .55); background: transparent; pointer-events: none; }
+
+  .overview-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 52px 52px 52px 52px 44px; gap: 6px; align-items: center; margin-top: 6px; font-size: 12px; }
+  .overview-row span { text-align: center; font-variant-numeric: tabular-nums; }
+  .overview-row span:nth-child(2) { text-align: left; }
+  .overview-row.overview-head { color: var(--muted); font-size: 11px; margin-top: 0; }
+  .overview-row button { padding: 3px 8px; font-size: 11px; }
+
+  .char { border: 1px solid var(--line-soft); border-radius: 8px; padding: 8px 10px; margin-top: 8px; display: grid; gap: 6px; }
+  .char-top { display: grid; grid-template-columns: minmax(0, 1fr) 40px auto; gap: 6px; align-items: center; }
+  .char-top input[type=color] { height: 30px; }
+  .char .btns button { padding: 4px 9px; font-size: 12px; }
+  .char .warn { color: #ffb86b; font-size: 12px; }
+
+  .stage-wrap { position: sticky; top: 20px; display: grid; gap: 10px; min-width: 0; }
+  .stage { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--line);
+           min-height: 220px; display: grid; place-items: center; padding: 28px 16px; }
+  .stage.bg-checker { background-color: #cfcfd6;
+    background-image: linear-gradient(45deg, #9a9aa5 25%, transparent 25% 75%, #9a9aa5 75%),
+                      linear-gradient(45deg, #9a9aa5 25%, transparent 25% 75%, #9a9aa5 75%);
+    background-size: 24px 24px; background-position: 0 0, 12px 12px; }
+  .stage.bg-dark { background-color: #26272e; }
+  .stage.bg-light { background-color: #f2f2f4; }
+  .stage.bg-scene { background: radial-gradient(ellipse at 30% 20%, #6d7fa8, transparent 60%),
+                    radial-gradient(ellipse at 80% 90%, #a8735a, transparent 55%), #2d3348; }
+  .frame-box { position: relative; outline: 1px dashed rgba(255, 64, 160, .85); outline-offset: 0; }
+  /* color-scheme must match the page inside, or Chromium paints the iframe opaque white (this page is dark). */
+  .frame-box iframe { position: absolute; left: 0; top: 0; border: 0; background: transparent; transform-origin: 0 0; pointer-events: none; color-scheme: normal; }
+  .stage-info { position: absolute; left: 10px; bottom: 6px; font-size: 11px; color: #fff; text-shadow: 0 1px 2px #000; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar .spacer { flex: 1; }
+  .bar select { width: auto; }
+  .bar input[type=text] { width: 140px; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 11px; background: transparent; }
+  .seg button[aria-pressed=true] { background: #3a3d4f; font-weight: 700; }
+  .status { color: var(--muted); font-size: 12px; min-height: 1.4em; margin: 0; }
+  .status.error { color: #ff8f8f; }
+  .size-note { color: var(--fg); font-size: 13px; }
+  .size-note b { font-size: 15px; }
+
+  .tester { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+  .tester h2 { margin: 0; font-size: 12px; color: var(--muted); font-weight: 400; }
+  .test-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) 54px 58px; gap: 8px; align-items: center; }
+  .test-row output { text-align: right; font-variant-numeric: tabular-nums; }
+
+  details.css-out summary { cursor: pointer; color: var(--muted); }
+  details.css-out textarea { margin-top: 8px; height: 280px; font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; white-space: pre; }
+
+  .note { color: var(--muted); font-size: 12px; line-height: 1.8; margin: 0; }
+  .note code { background: #14151b; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .note h2 { font-size: 13px; color: var(--fg); margin: 18px 0 6px; }
+  .note ol, .note ul { margin: 6px 0; padding-left: 1.4em; }
+  footer { border-top: 1px solid var(--line); padding: 16px 24px 40px; color: var(--muted); font-size: 12px; line-height: 1.9; }
+  footer a { color: #a8abff; }
+  .home-link { display: inline-block; margin-bottom: 4px; color: var(--muted); font-size: 12px; text-decoration: none; }
+  .home-link:hover { color: var(--fg); text-decoration: underline; }
+  .home-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home-link" href="https://shiki365.github.io/status-bar-maker/">‹ 原作：shiki365「ステータスバーメーカー」</a>
+  <h1>TRPG OBS工具</h1>
+  <p>把 CCFOLIA 角色的 HP、MP、SAN 等數值，用你喜歡的樣式顯示在 OBS 上，產生對應的「自訂 CSS」。數值會和 CCFOLIA 連動。所有處理都在瀏覽器內完成，輸入的內容不會傳送到任何地方。</p>
+</header>
+
+<nav class="toptabs" role="tablist">
+  <button type="button" role="tab" data-toptab="maker" aria-selected="true">狀態條產生器</button>
+  <button type="button" role="tab" data-toptab="overview" aria-selected="false">整合版面</button>
+</nav>
+
+<main>
+  <div class="panel" data-top-panel="maker">
+    <nav class="tabbar" role="tablist">
+      <button type="button" role="tab" data-tab="layout" aria-selected="true">版面</button>
+      <button type="button" role="tab" data-tab="bar" aria-selected="false">狀態條</button>
+      <button type="button" role="tab" data-tab="text" aria-selected="false">文字・名稱</button>
+      <button type="button" role="tab" data-tab="effects" aria-selected="false">效果・裝飾</button>
+      <button type="button" role="tab" data-tab="chars" aria-selected="false">角色・儲存</button>
+    </nav>
+
+    <!-- ============================================================ layout -->
+    <section data-tab-panel="layout">
+      <fieldset>
+        <legend>設計範本</legend>
+        <div class="row wide"><span class="pair" style="grid-template-columns: 1fr auto;">
+          <select id="design" aria-label="設計範本"></select>
+          <button type="button" id="applyDesign">套用</button>
+        </span></div>
+        <p class="desc" id="designDesc"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>狀態數量</legend>
+        <div class="row"><label>條數</label>
+          <span class="with-value"><input type="range" data-bind="layout.count" min="1" max="8" step="1"><output data-out="layout.count" data-fmt="bars"></output></span></div>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="layout.hideExtra"> 隱藏更下面的狀態</label></div>
+        <p class="desc">對應 CCFOLIA 角色的「狀態」。依<b>由上而下第 1 條、第 2 條…</b>的順序套用顏色（CCFOLIA 最多顯示 8 條）。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>狀態條排列方式</legend>
+        <div class="row"><label>排列方式</label>
+          <select data-bind="layout.direction"><option value="column">直向堆疊</option><option value="row">橫向排列</option><option value="grid">分成多欄</option></select></div>
+        <div class="row" data-show="layout.direction=grid"><label>欄數</label>
+          <span class="with-value"><input type="range" data-bind="layout.columns" min="2" max="4" step="1"><output data-out="layout.columns"></output></span></div>
+        <div class="row"><label>單條寬度</label>
+          <span class="with-value"><input type="range" data-bind="layout.width" min="80" max="600" step="2"><output data-out="layout.width" data-fmt="px"></output></span></div>
+        <div class="row"><label>狀態條高度</label>
+          <span class="with-value"><input type="range" data-bind="layout.height" min="3" max="80" step="1"><output data-out="layout.height" data-fmt="px"></output></span></div>
+        <div class="row"><label>間距</label>
+          <span class="with-value"><input type="range" data-bind="layout.gap" min="0" max="40" step="1"><output data-out="layout.gap" data-fmt="px"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>文字的擺放方式</legend>
+        <div class="row"><label>擺放方式</label><select data-bind="layout.textLayout" data-options="TEXT_LAYOUTS"></select></div>
+        <div class="row" data-show="layout.textLayout=overlay"><label>對齊方式</label><select data-bind="layout.align" data-options="ALIGNS"></select></div>
+        <div class="row" data-show="layout.textLayout=overlay|labelSide"><label>邊緣留白</label>
+          <span class="with-value"><input type="range" data-bind="layout.pad" min="0" max="30" step="1"><output data-out="layout.pad" data-fmt="px"></output></span></div>
+        <div class="row" data-show="layout.textLayout=side|labelSide"><label>標籤寬度</label>
+          <span class="with-value"><input type="range" data-bind="layout.labelW" min="16" max="160" step="1"><output data-out="layout.labelW" data-fmt="px"></output></span></div>
+        <div class="row" data-show="layout.textLayout=side"><label>數值寬度</label>
+          <span class="with-value"><input type="range" data-bind="layout.valueW" min="24" max="200" step="1"><output data-out="layout.valueW" data-fmt="px"></output></span></div>
+        <div class="row" data-show="layout.textLayout!=overlay"><label>與文字的距離</label>
+          <span class="with-value"><input type="range" data-bind="layout.textGap" min="0" max="24" step="1"><output data-out="layout.textGap" data-fmt="px"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>角色頭像圖片</legend>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="avatar.show"> 顯示頭像</label></div>
+        <div data-show="avatar.show=true">
+          <div class="row"><label>位置</label>
+            <select data-bind="avatar.pos"><option value="left">狀態條左側</option><option value="right">狀態條右側</option><option value="top">狀態條上方</option></select></div>
+          <div class="row"><label>寬度</label>
+            <span class="with-value"><input type="range" data-bind="avatar.w" min="24" max="320" step="2"><output data-out="avatar.w" data-fmt="px"></output></span></div>
+          <div class="row"><label>高度</label>
+            <span class="with-value"><input type="range" data-bind="avatar.h" min="24" max="480" step="2"><output data-out="avatar.h" data-fmt="px"></output></span></div>
+          <div class="row"><label>裁切方式</label>
+            <select data-bind="avatar.fit"><option value="top">靠上裁切</option><option value="center">置中裁切</option><option value="contain">完整顯示</option></select></div>
+          <div class="row"><label>圓角</label>
+            <span class="with-value"><input type="range" data-bind="avatar.radius" min="0" max="160" step="1"><output data-out="avatar.radius" data-fmt="px"></output></span></div>
+          <div class="row"><label>外框</label>
+            <span class="with-value"><input type="range" data-bind="avatar.borderW" min="0" max="8" step="1"><output data-out="avatar.borderW" data-fmt="px"></output></span></div>
+          <div class="row" data-show="avatar.useCharColor=false"><label>外框顏色</label>
+            <span class="color-alpha"><input type="color" data-bind="avatar.borderColor"><input type="range" data-bind="avatar.borderAlpha" min="0" max="1" step="0.01"><output data-out="avatar.borderAlpha" data-fmt="pct"></output></span></div>
+          <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="avatar.useCharColor"> 外框使用角色的顏色</label></div>
+          <div class="row"><label>背景</label>
+            <span class="color-alpha"><input type="color" data-bind="avatar.bg"><input type="range" data-bind="avatar.bgAlpha" min="0" max="1" step="0.01"><output data-out="avatar.bgAlpha" data-fmt="pct"></output></span></div>
+          <div class="row"><label>與狀態條的距離</label>
+            <span class="with-value"><input type="range" data-bind="avatar.gap" min="0" max="40" step="1"><output data-out="avatar.gap" data-fmt="px"></output></span></div>
+
+          <div class="row"><label>先攻值</label><label class="check"><input type="checkbox" data-bind="initiative.show"> 顯示在頭像角落</label></div>
+          <div data-show="initiative.show=true">
+            <div class="row"><label>角落</label>
+              <select data-bind="initiative.corner"><option value="tl">左上</option><option value="tr">右上</option><option value="bl">左下</option><option value="br">右下</option></select></div>
+            <div class="row"><label>大小</label>
+              <span class="with-value"><input type="range" data-bind="initiative.size" min="14" max="48" step="1"><output data-out="initiative.size" data-fmt="px"></output></span></div>
+            <div class="row"><label>文字 / 背景</label><span class="pair"><input type="color" data-bind="initiative.color" aria-label="先攻值文字顏色"><input type="color" data-bind="initiative.bg" aria-label="先攻值背景顏色"></span></div>
+          </div>
+        </div>
+        <p class="desc">CCFOLIA 角色棋子的圖片。先攻值為 0 時不會顯示數字。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>外側留白</legend>
+        <div class="row"><label>留白</label>
+          <span class="with-value"><input type="range" data-bind="layout.outer" min="0" max="40" step="1"><output data-out="layout.outer" data-fmt="px"></output></span></div>
+        <p class="desc">為了避免光暈或陰影被裁掉，在周圍預留的寬度。</p>
+      </fieldset>
+    </section>
+
+    <!-- ============================================================ bar -->
+    <section data-tab-panel="bar" hidden>
+      <fieldset>
+        <legend>形狀</legend>
+        <div class="row"><label>形狀</label><select data-bind="bar.shape" data-options="SHAPES"></select></div>
+        <div class="row" data-show="bar.shape=rect"><label>圓角</label>
+          <span class="with-value"><input type="range" data-bind="bar.radius" min="0" max="40" step="1"><output data-out="bar.radius" data-fmt="px"></output></span></div>
+        <div class="row" data-show="bar.shape=chamfer|arrow|tag"><label>切口深度</label>
+          <span class="with-value"><input type="range" data-bind="bar.cut" min="0" max="40" step="1"><output data-out="bar.cut" data-fmt="px"></output></span></div>
+        <div class="row" data-show="bar.shape=slant"><label>傾斜</label>
+          <span class="with-value"><input type="range" data-bind="bar.slant" min="0" max="40" step="1"><output data-out="bar.slant" data-fmt="px"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>外框線</legend>
+        <div class="row"><label>粗細</label>
+          <span class="with-value"><input type="range" data-bind="bar.borderW" min="0" max="6" step="1"><output data-out="bar.borderW" data-fmt="px"></output></span></div>
+        <div data-show="bar.borderW!=0">
+          <div class="row"><label>顏色</label>
+            <span class="color-alpha"><input type="color" data-bind="bar.borderColor"><input type="range" data-bind="bar.borderAlpha" min="0" max="1" step="0.01"><output data-out="bar.borderAlpha" data-fmt="pct"></output></span></div>
+          <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="bar.double"> 改為雙線</label></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>減少的部分（底色）</legend>
+        <div class="row"><label>顯示方式</label><select data-bind="bar.track" data-options="TRACKS"></select></div>
+        <div class="row" data-show="bar.track!=none"><label>顏色</label>
+          <span class="color-alpha"><input type="color" data-bind="bar.trackColor"><input type="range" data-bind="bar.trackAlpha" min="0" max="1" step="0.01"><output data-out="bar.trackAlpha" data-fmt="pct"></output></span></div>
+        <div class="row" data-show="bar.track=tint"><label>混色比例</label>
+          <span class="with-value"><input type="range" data-bind="bar.tint" min="0" max="1" step="0.01"><output data-out="bar.tint" data-fmt="pct"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>填色</legend>
+        <div class="row"><label>填色方式</label><select data-bind="bar.fill" data-options="FILLS"></select></div>
+        <div class="row" data-show="bar.fill=stripes"><label></label><label class="check"><input type="checkbox" data-bind="bar.flow"> 讓斜紋流動</label></div>
+        <div class="row"><label>分段</label>
+          <span class="with-value"><input type="range" data-bind="bar.segments" min="0" max="40" step="1"><output data-out="bar.segments" data-fmt="seg"></output></span></div>
+        <div class="row" data-show="bar.segments!=0|1"><label>分段間隔寬度</label>
+          <span class="with-value"><input type="range" data-bind="bar.segGap" min="1" max="8" step="1"><output data-out="bar.segGap" data-fmt="px"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>動態與陰影</legend>
+        <div class="row"><label>增減速度</label>
+          <span class="with-value"><input type="range" data-bind="bar.speed" min="0" max="2" step="0.05"><output data-out="bar.speed" data-fmt="sec"></output></span></div>
+        <div class="row"><label>陰影</label>
+          <span class="with-value"><input type="range" data-bind="bar.shadow" min="0" max="1" step="0.05"><output data-out="bar.shadow" data-fmt="pct"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>逐條設定</legend>
+        <div class="bar-item bar-head"><span>#</span><span>顯示名稱（留空則不變）</span><span>色1</span><span>色2</span><span>圖示</span><span title="瀕危效果">⚠</span></div>
+        <div id="barList"></div>
+        <p class="desc">色2 用於漸層與斜紋。⚠ 代表這一條是否要套用「效果・裝飾」分頁裡的瀕危效果。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>圖示</legend>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="icons.show"> 在狀態條左側顯示圖示</label></div>
+        <div data-show="icons.show=true">
+          <div class="row"><label>大小</label>
+            <span class="with-value"><input type="range" data-bind="icons.size" min="10" max="48" step="1"><output data-out="icons.size" data-fmt="px"></output></span></div>
+          <div class="row"><label>與狀態條的距離</label>
+            <span class="with-value"><input type="range" data-bind="icons.gap" min="0" max="20" step="1"><output data-out="icons.gap" data-fmt="px"></output></span></div>
+        </div>
+      </fieldset>
+    </section>
+
+    <!-- ============================================================ text -->
+    <section data-tab-panel="text" hidden>
+      <fieldset>
+        <legend>字型</legend>
+        <div class="row"><label>標籤</label><select data-bind="text.labelFont" data-options="FONTS"></select></div>
+        <div class="row sub" data-show="text.labelFont=pc"><label>字型名稱</label><span class="pc-font">
+          <input type="text" data-bind="text.labelFontName" placeholder="例）Microsoft JhengHei" aria-label="標籤的字型名稱" autocomplete="off" spellcheck="false"><button type="button" class="small" data-pc-fonts>從清單選擇</button></span></div>
+        <div class="row"><label>數值</label><select data-bind="text.valueFont" data-options="FONTS"></select></div>
+        <div class="row sub" data-show="text.valueFont=pc"><label>字型名稱</label><span class="pc-font">
+          <input type="text" data-bind="text.valueFontName" placeholder="例）Microsoft JhengHei" aria-label="數值的字型名稱" autocomplete="off" spellcheck="false"><button type="button" class="small" data-pc-fonts>從清單選擇</button></span></div>
+        <div class="row"><label>字重</label><select data-bind="text.weight" data-options="WEIGHTS" data-number></select></div>
+        <p class="desc">標示「英數」的字型只支援英數字，中文的部分會改用本機的黑體。字型沒有的字重，會以最接近的字重顯示。</p>
+        <p class="desc" data-show="text.labelFont=pc|text.valueFont=pc">選「自行輸入名稱」可以使用這台電腦已安裝的字型。<b>執行 OBS 的電腦也必須安裝同一套字型。</b></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>大小</legend>
+        <div class="row"><label>標籤</label>
+          <span class="with-value"><input type="range" data-bind="text.labelSize" min="8" max="48" step="1"><output data-out="text.labelSize" data-fmt="px"></output></span></div>
+        <div class="row"><label>目前值</label>
+          <span class="with-value"><input type="range" data-bind="text.valueSize" min="8" max="64" step="1"><output data-out="text.valueSize" data-fmt="px"></output></span></div>
+        <div class="row" data-show="text.valueMode=both"><label>最大值</label>
+          <span class="with-value"><input type="range" data-bind="text.maxSize" min="6" max="48" step="1"><output data-out="text.maxSize" data-fmt="px"></output></span></div>
+        <div class="row"><label>字距</label>
+          <span class="with-value"><input type="range" data-bind="text.spacing" min="0" max="0.3" step="0.01"><output data-out="text.spacing" data-fmt="em"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>顯示與顏色</legend>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="text.showLabel"> 顯示標籤（HP 等）</label></div>
+        <div class="row"><label>數值</label><select data-bind="text.valueMode" data-options="VALUE_MODES"></select></div>
+        <div class="row"><label>文字</label><input type="color" data-bind="text.color"></div>
+        <div class="row" data-show="text.valueMode=both"><label>最大值顏色</label>
+          <span class="color-alpha"><input type="color" data-bind="text.subColor"><input type="range" data-bind="text.subAlpha" min="0" max="1" step="0.01"><output data-out="text.subAlpha" data-fmt="pct"></output></span></div>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="text.labelByBar"> 標籤使用狀態條的顏色</label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>描邊</legend>
+        <div class="row"><label>種類</label><select data-bind="text.outline" data-options="OUTLINES"></select></div>
+        <div class="row" data-show="text.outline!=none"><label>顏色</label>
+          <span class="color-alpha"><input type="color" data-bind="text.outlineColor"><input type="range" data-bind="text.outlineAlpha" min="0" max="1" step="0.01"><output data-out="text.outlineAlpha" data-fmt="pct"></output></span></div>
+        <div class="row" data-show="text.outline=stroke"><label>粗細</label>
+          <span class="with-value"><input type="range" data-bind="text.outlineW" min="1" max="5" step="0.5"><output data-out="text.outlineW" data-fmt="px"></output></span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>名稱</legend>
+        <div class="row"><label>位置</label><select data-bind="name.pos" data-options="NAME_POS"></select></div>
+        <div data-show="name.pos!=none">
+          <div class="row"><label>外觀</label><select data-bind="name.style" data-options="NAME_STYLES"></select></div>
+          <div class="row"><label>字型</label><select data-bind="name.font" data-options="FONTS"></select></div>
+          <div class="row sub" data-show="name.font=pc"><label>字型名稱</label><span class="pc-font">
+            <input type="text" data-bind="name.fontName" placeholder="例）Microsoft JhengHei" aria-label="名稱的字型名稱" autocomplete="off" spellcheck="false"><button type="button" class="small" data-pc-fonts>從清單選擇</button></span></div>
+          <div class="row"><label>字重</label><select data-bind="name.weight" data-options="WEIGHTS" data-number></select></div>
+          <div class="row"><label>大小</label>
+            <span class="with-value"><input type="range" data-bind="name.size" min="10" max="64" step="1"><output data-out="name.size" data-fmt="px"></output></span></div>
+          <div class="row"><label>文字顏色</label><input type="color" data-bind="name.color"></div>
+          <div class="row" data-show="name.style=plate|sidebar|name.pos=avatar"><label>背景</label>
+            <span class="color-alpha"><input type="color" data-bind="name.bg"><input type="range" data-bind="name.bgAlpha" min="0" max="1" step="0.01"><output data-out="name.bgAlpha" data-fmt="pct"></output></span></div>
+          <div data-show="name.style=underline|sidebar|tab|badge">
+            <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="name.useCharColor"> 線條與背景使用角色的顏色</label></div>
+            <div class="row" data-show="name.useCharColor=false"><label>線條・背景顏色</label><input type="color" data-bind="name.accent"></div>
+          </div>
+          <div class="row" data-show="name.pos!=avatar"><label>對齊</label>
+            <select data-bind="name.align"><option value="left">靠左</option><option value="center">置中</option><option value="right">靠右</option></select></div>
+          <div class="row" data-show="name.pos!=left"><label>過長的名稱</label>
+            <select data-bind="name.overflow"><option value="ellipsis">用「…」省略</option><option value="wrap">自動換行</option><option value="grow">依長度加寬</option></select></div>
+          <div class="row" data-show="name.pos=left"><label></label><label class="check"><input type="checkbox" data-bind="name.vertical"> 改為直書</label></div>
+          <div class="row" data-show="name.pos=left&name.vertical=true"><label></label><label class="check"><input type="checkbox" data-bind="name.fitHeight"> 過長的名稱依狀態條高度換行</label></div>
+          <div class="row" data-show="name.pos!=avatar"><label>與狀態條的距離</label>
+            <span class="with-value"><input type="range" data-bind="name.gap" min="0" max="40" step="1"><output data-out="name.gap" data-fmt="px"></output></span></div>
+        </div>
+        <p class="desc">CCFOLIA 的這個畫面不會顯示名稱，因此名稱是寫在 CSS 裡的。各角色的名稱可在「角色・儲存」分頁輸入。</p>
+      </fieldset>
+    </section>
+
+    <!-- ============================================================ effects -->
+    <section data-tab-panel="effects" hidden>
+      <fieldset>
+        <legend>瀕危效果</legend>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="alert.lowOn"> 剩餘量過低時提示</label></div>
+        <div data-show="alert.lowOn=true">
+          <div class="row"><label>剩餘量</label>
+            <span class="with-value"><input type="range" data-bind="alert.lowAt" min="5" max="95" step="5"><output data-out="alert.lowAt" data-fmt="under"></output></span></div>
+          <div class="row"><label>顏色</label><input type="color" data-bind="alert.lowColor"></div>
+          <div class="row"><label>效果</label><span class="checks">
+            <label class="check"><input type="checkbox" data-bind="alert.lowPulse"> 脈動發光</label>
+            <label class="check"><input type="checkbox" data-bind="alert.lowBlink"> 狀態條閃爍</label>
+            <label class="check"><input type="checkbox" data-bind="alert.lowShake"> 震動</label>
+            <label class="check"><input type="checkbox" data-bind="alert.lowFill"> 狀態條變成這個顏色</label>
+            <label class="check"><input type="checkbox" data-bind="alert.lowText"> 數值變成這個顏色</label>
+          </span></div>
+        </div>
+        <p class="desc">要在哪幾條套用，可在「狀態條」分頁的 ⚠ 勾選。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>歸零時</legend>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="alert.zeroOn"> 改變歸零的狀態條</label></div>
+        <div class="row" data-show="alert.zeroOn=true"><label>效果</label><span class="checks">
+          <label class="check"><input type="checkbox" data-bind="alert.zeroGray"> 變成灰色</label>
+          <label class="check"><input type="checkbox" data-bind="alert.zeroBlink"> 文字閃爍</label>
+        </span></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>CCFOLIA 的紅色數字</legend>
+        <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="alert.red80"> 使用紅色數字</label></div>
+        <div data-show="alert.red80=true">
+          <div class="row"><label>顏色</label><input type="color" data-bind="alert.redColor"></div>
+          <div class="row"><label></label><label class="check"><input type="checkbox" data-bind="alert.redBlink"> 閃爍</label></div>
+        </div>
+        <p class="desc">CCFOLIA 在目前值降到<b>最大值的 80% 以下</b>時會把數字變紅（與瀕危判定是分開的）。不使用時，數值減少也會維持平常的文字顏色。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>裝飾</legend>
+        <div id="decoList"></div>
+      </fieldset>
+      <p class="desc">瀕危與歸零的效果需要 OBS 30 以上才會作用（較舊的 OBS 只是不會顯示效果）。</p>
+    </section>
+
+    <!-- ============================================================ chars -->
+    <section data-tab-panel="chars" hidden>
+      <fieldset>
+        <legend>房間</legend>
+        <div class="row wide"><input type="text" data-bind="characters.room" placeholder="https://ccfolia.com/rooms/…" aria-label="房間網址"></div>
+        <p class="desc">貼上在 CCFOLIA 開啟房間時的網址。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>角色</legend>
+        <div id="charList"></div>
+        <div class="row wide"><span class="btns"><button type="button" id="addChar">新增角色</button></span></div>
+        <p class="desc">角色 ID 可在桌面上的棋子按右鍵 →「Copy Id (for dev)」複製。直接貼上棋子的網址也可以。<br>按下「複製 CSS」後，會複製已寫入該角色名稱與顏色的 CSS。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>專案</legend>
+        <div class="row wide"><span class="btns">
+          <button type="button" id="saveProject">儲存專案</button>
+          <button type="button" id="openProject">開啟</button>
+          <button type="button" class="danger" id="resetAll">全部重來</button>
+        </span></div>
+        <p class="desc">編輯內容會自動儲存在這個瀏覽器中。要帶到別台電腦或備份時，請使用「儲存專案」。</p>
+      </fieldset>
+    </section>
+  </div>
+
+  <!-- ============================================================ overview -->
+  <div class="panel" data-top-panel="overview" hidden>
+    <section>
+      <fieldset>
+        <legend>整合版面（多角色版位計算）</legend>
+        <div class="row"><label>排列方向</label>
+          <select data-bind="overview.direction"><option value="row">橫向並排</option><option value="column">直向堆疊</option></select></div>
+        <div class="row"><label>目標總長度</label>
+          <span class="with-value"><input type="range" data-bind="overview.total" min="200" max="4000" step="10"><output data-out="overview.total" data-fmt="px"></output></span></div>
+        <div class="row"><label>間隔</label>
+          <span class="with-value"><input type="range" data-bind="overview.gap" min="0" max="200" step="1"><output data-out="overview.gap" data-fmt="px"></output></span></div>
+        <p class="desc">橫向並排時「目標總長度」是總寬度，直向堆疊時是總高度。角色順序依「角色・儲存」分頁的清單。右側的預覽用目前設計實際量出來的大小排出來，供排版參考；表格則是每位角色該貼進 OBS 瀏覽器來源「變形」設定的位置與尺寸。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>各角色版位</legend>
+        <div id="overviewList"></div>
+        <div class="row wide"><span class="btns"><button type="button" id="copyOverviewAll">複製所有版位</button></span></div>
+        <p class="desc" id="overviewNote"></p>
+      </fieldset>
+    </section>
+  </div>
+
+  <div class="stage-wrap" data-top-panel="overview" hidden>
+    <div class="bar"><label style="color: var(--muted)">整合預覽</label></div>
+    <div class="stage bg-checker" id="ovStage">
+      <div class="ov-box" id="ovBox"><div class="ov-canvas" id="ovCanvas"></div></div>
+      <p class="desc" id="ovEmpty" hidden>請先在「角色・儲存」分頁新增角色。</p>
+    </div>
+    <p class="desc" id="ovStageInfo"></p>
+  </div>
+
+  <div class="stage-wrap" data-top-panel="maker">
+    <div class="bar">
+      <label for="previewChar" style="color: var(--muted)">預覽</label>
+      <select id="previewChar"></select>
+      <span class="spacer"></span>
+      <button type="button" class="small" id="undo" title="復原 (Ctrl+Z)">↶ 復原</button>
+      <button type="button" class="small" id="redo" title="重做 (Ctrl+Y)">↷ 重做</button>
+    </div>
+    <div class="stage bg-checker" id="stage">
+      <div class="frame-box" id="frameBox"><iframe id="preview" title="預覽" tabindex="-1"></iframe></div>
+      <span class="stage-info" id="stageInfo"></span>
+    </div>
+    <div class="bar">
+      <span class="seg" id="bgSeg" aria-label="預覽背景">
+        <button type="button" data-bg="checker">棋盤格</button>
+        <button type="button" data-bg="dark">深色</button>
+        <button type="button" data-bg="light">淺色</button>
+        <button type="button" data-bg="scene">彩色</button>
+      </span>
+      <span class="spacer"></span>
+      <span class="size-note" id="sizeNote"></span>
+    </div>
+
+    <div class="tester" id="tester">
+      <h2>調整數值試看看（僅影響預覽，不會影響輸出的 CSS）</h2>
+      <div id="testRows"></div>
+      <div class="bar">
+        <button type="button" class="small" data-test="-3">−3</button>
+        <button type="button" class="small" data-test="+3">＋3</button>
+        <button type="button" class="small" data-test="half">減半</button>
+        <button type="button" class="small" data-test="low">瀕危</button>
+        <button type="button" class="small" data-test="zero">歸零</button>
+        <button type="button" class="small" data-test="full">全滿</button>
+        <span class="spacer"></span>
+        <label style="color: var(--muted)">先攻值 <input type="number" id="testInit" min="0" max="99" style="width: 64px"></label>
+        <button type="button" class="small" id="pickAvatar">選擇頭像圖片</button>
+      </div>
+    </div>
+
+    <div class="bar">
+      <input type="text" data-bind="fileBase" aria-label="檔案名稱" placeholder="檔案名稱">
+      <span class="spacer"></span>
+      <button type="button" id="downloadCss">儲存 CSS</button>
+      <button type="button" class="primary" id="copyCss">複製 CSS</button>
+    </div>
+    <p class="status" id="status">載入中...</p>
+
+    <details class="css-out">
+      <summary>檢視輸出的 CSS</summary>
+      <textarea id="cssOut" readonly spellcheck="false" aria-label="輸出的 CSS"></textarea>
+    </details>
+
+    <div class="note">
+      <h2>OBS 的設定</h2>
+      <ol>
+        <li>新增來源 →「瀏覽器」。在網址欄填入角色的網址：<br><code>https://ccfolia.com/rooms/{房間ID}/characters/{角色ID}</code></li>
+        <li>在寬度與高度填入上方顯示的 <b>瀏覽器來源尺寸</b>。</li>
+        <li>把「自訂 CSS」欄位的內容全部刪除，貼上剛才複製的 CSS。</li>
+        <li>如果畫面仍是一片空白，在來源上按右鍵 →「互動」，登入 CCFOLIA 並進入房間（做過一次就會記住）。</li>
+        <li>第二位角色開始，請<b>用「新增來源」→「瀏覽器」重新建立</b>，網址與 CSS 都換成該角色的。<b>瀏覽器來源受 OBS 限制無法複製</b>（「貼上（複製）」會呈灰色），若用「貼上（參照）」增加，所有人都會變成同一個角色。尺寸與位置可用右鍵 →「複製變形」→「貼上變形」統一。</li>
+      </ol>
+      <h2>CCFOLIA 的設定</h2>
+      <ul>
+        <li>角色「狀態」的<b>排列順序</b>會對應到第 1 條、第 2 條…的顏色（例：HP → MP → SAN）。</li>
+        <li>在聊天室輸入 <code>:HP-3</code>、<code>:SAN=45</code> 之類的指令，OBS 這邊也會立刻更新。</li>
+        <li>設定為「隱藏狀態」的角色，除了擁有者以外都看不到狀態條。</li>
+      </ul>
+      <h2>要使用電腦已安裝的字型時</h2>
+      <ul>
+        <li>在字型欄選擇「自行輸入名稱（本機字型）」並填入字型名稱。在 Chrome / Edge 可用「從清單選擇」直接看外觀挑選電腦內的字型（第一次會詢問是否允許使用字型）。</li>
+        <li>OBS 是用自己電腦上的字型顯示，所以<b>執行 OBS 的電腦也要安裝同一套字型</b>。若沒有安裝，會變成一般的黑體。</li>
+        <li>不含中文字的字型，中文的部分會變成一般的黑體（可用清單範例中的「永」字確認）。</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<input type="file" id="projectFile" accept=".json,application/json" hidden>
+<input type="file" id="avatarFile" accept="image/*" hidden>
+
+<footer>
+  只靠瀏覽器就能執行的免費工具。產生的 CSS 可自由使用。<br>
+  CCFOLIA 的畫面結構若有變動，顯示可能會跑掉。本工具與任何服務皆無關聯，屬於<strong>非官方</strong>工具。<br>
+  繁體中文版・改作自 <a href="https://shiki365.github.io/status-bar-maker/">shiki365「ステータスバーメーカー」</a>（MIT License）<br>
+  v1.3 ・ 對應原版更新日 2026-09-19
+</footer>
+
+<!-- ?v= keeps GitHub Pages' cache from mixing old and new files after an update -->
+<script src="presets.v1.js?v=3"></script>
+<script src="shapes.v1.js?v=2"></script>
+<script src="model.v1.js?v=2"></script>
+<script src="deco.v1.js?v=2"></script>
+<script src="css.v1.js?v=3"></script>
+<script src="mock.v1.js?v=2"></script>
+<script src="pcfonts.v1.js?v=1"></script>
+<script src="app.v1.js?v=3"></script>
+</body>
+</html>
